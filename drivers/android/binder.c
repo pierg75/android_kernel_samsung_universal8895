@@ -2272,12 +2272,6 @@ static void binder_transaction(struct binder_proc *proc,
 	list_add_tail(&t->work.entry, target_list);
 	tcomplete->type = BINDER_WORK_TRANSACTION_COMPLETE;
 	list_add_tail(&tcomplete->entry, &thread->todo);
-
-#ifdef CONFIG_SEC_TRACE_BINDERCNT
-	if(target_proc->tsk->pid == binder_trace_pid)
-		proc->stats.process_bnd_cnt++;
-#endif
-
 	if (target_wait) {
 		if (reply || !(t->flags & TF_ONE_WAY))
 			wake_up_interruptible_sync(target_wait);
