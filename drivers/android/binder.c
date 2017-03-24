@@ -175,9 +175,6 @@ struct binder_stats {
 	int bc[_IOC_NR(BC_REPLY_SG) + 1];
 	int obj_created[BINDER_STAT_COUNT];
 	int obj_deleted[BINDER_STAT_COUNT];
-#ifdef CONFIG_SEC_TRACE_BINDERCNT
-	int process_bnd_cnt;
-#endif
 };
 
 static struct binder_stats binder_stats;
@@ -466,7 +463,6 @@ static inline void binder_lock(const char *tag)
 {
 	trace_binder_lock(tag);
 	mutex_lock(&binder_main_lock);
-	preempt_disable();
 	trace_binder_locked(tag);
 }
 
@@ -474,7 +470,6 @@ static inline void binder_unlock(const char *tag)
 {
 	trace_binder_unlock(tag);
 	mutex_unlock(&binder_main_lock);
-	preempt_enable();
 }
 
 static inline void *kzalloc_preempt_disabled(size_t size)
@@ -3798,12 +3793,8 @@ static void binder_deferred_func(struct work_struct *work)
 	int defer;
 
 	do {
-		trace_binder_lock(__func__);
-		mutex_lock(&binder_main_lock);
-		trace_binder_locked(__func__);
-
+		binder_lock(__func__);
 		mutex_lock(&binder_deferred_lock);
-		preempt_disable();
 		if (!hlist_empty(&binder_deferred_list)) {
 			proc = hlist_entry(binder_deferred_list.first,
 					struct binder_proc, deferred_work_node);
@@ -3829,9 +3820,7 @@ static void binder_deferred_func(struct work_struct *work)
 		if (defer & BINDER_DEFERRED_RELEASE)
 			binder_deferred_release(proc); /* frees proc */
 
-		trace_binder_unlock(__func__);
-		mutex_unlock(&binder_main_lock);
-		preempt_enable_no_resched();
+		binder_unlock(__func__);
 		if (files)
 			put_files_struct(files);
 	} while (proc);
@@ -4165,13 +4154,6 @@ static void print_binder_proc_stats(struct seq_file *m,
 	seq_printf(m, "  pending transactions: %d\n", count);
 
 	print_binder_stats(m, "  ", &proc->stats);
-
-#ifdef CONFIG_SEC_TRACE_BINDERCNT
-	if (proc->stats.process_bnd_cnt) {
-		seq_printf(m, "  CALLS_TO_TARGET_PROCESS (from %s %d): %d\n", 
-				proc->tsk->comm, proc->tsk->pid, proc->stats.process_bnd_cnt);
-	}
-#endif
 }
 
 
@@ -4278,34 +4260,6 @@ static int binder_transaction_log_show(struct seq_file *m, void *unused)
 	return 0;
 }
 
-#ifdef CONFIG_SEC_TRACE_BINDERCNT
-static int binder_process_transaction_show(struct seq_file *m, void *unused)
-{
-	struct binder_proc *proc;
-	int ppid;
-	int do_lock = !binder_debug_no_lock;
-
-	if (do_lock)
-		binder_lock(__func__);
-
-	hlist_for_each_entry(proc, &binder_procs, proc_node) {
-		// Don't let show any daemon's binder count
-		ppid = proc->tsk->group_leader->parent->pid;
-
-		if (proc->stats.process_bnd_cnt && ppid != 1 && ppid != 2) {
-			seq_printf(m, "%d_%d_%s\n", proc->pid,
-					proc->stats.process_bnd_cnt,
-					proc->tsk->group_leader->comm);
-		}
-	}
-
-	if (do_lock)
-		binder_unlock(__func__);
-
-	return 0;
-}
-#endif
-
 static const struct file_operations binder_fops = {
 	.owner = THIS_MODULE,
 	.poll = binder_poll,
@@ -4391,13 +4345,6 @@ static int __init binder_init(void)
 				    binder_debugfs_dir_entry_root,
 				    &binder_transaction_log_failed,
 				    &binder_transaction_log_fops);
-#ifdef CONFIG_SEC_TRACE_BINDERCNT
-		debugfs_create_file("process_transaction",
-				    S_IRUGO,
-				    binder_debugfs_dir_entry_root,
-				    NULL,
-				    &binder_process_transaction_fops);
-#endif
 	}
 
 	/*
