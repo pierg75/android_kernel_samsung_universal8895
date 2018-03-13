@@ -176,6 +176,10 @@ config ARCH_EXYNOS8
 	help
 	  Samsung EXYNOS8 (Mongoose/A53) SoC based systems
 
+config ARCH_EXYNOS_DTS_NAME
+	string "Name of device tree source"
+	default "exynos"
+
 config ZONE_MOVABLE
 	bool "Enable Zone Movable"
 	default n
