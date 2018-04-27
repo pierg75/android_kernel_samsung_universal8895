@@ -98,13 +98,15 @@
 static atomic_t selinux_secmark_refcount = ATOMIC_INIT(0);
 
 #ifdef CONFIG_SECURITY_SELINUX_DEVELOP
-int selinux_enforcing;
+int selinux_enforcing = 0;
 
 static int __init enforcing_setup(char *str)
 {
 	unsigned long enforcing;
 	if (!kstrtoul(str, 0, &enforcing))
+		selinux_enforcing = 0;
 		selinux_enforcing = enforcing ? 1 : 0;
+#endif
 	return 1;
 }
 __setup("enforcing=", enforcing_setup);
@@ -400,16 +402,36 @@ static int selinux_is_sblabel_mnt(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
 
-	return sbsec->behavior == SECURITY_FS_USE_XATTR ||
-		sbsec->behavior == SECURITY_FS_USE_TRANS ||
-		sbsec->behavior == SECURITY_FS_USE_TASK ||
-		sbsec->behavior == SECURITY_FS_USE_NATIVE ||
-		/* Special handling. Genfs but also in-core setxattr handler */
-		!strcmp(sb->s_type->name, "sysfs") ||
-		!strcmp(sb->s_type->name, "pstore") ||
-		!strcmp(sb->s_type->name, "debugfs") ||
-		!strcmp(sb->s_type->name, "tracefs") ||
-		!strcmp(sb->s_type->name, "rootfs");
+	if (sbsec->behavior == SECURITY_FS_USE_XATTR ||
+	    sbsec->behavior == SECURITY_FS_USE_TRANS ||
+	    sbsec->behavior == SECURITY_FS_USE_TASK ||
+	    sbsec->behavior == SECURITY_FS_USE_NATIVE)
+		return 1;
+
+	if (strncmp(sb->s_type->name, "pstore", sizeof("pstore")) == 0)
+		return 1;
+
+	if (strncmp(sb->s_type->name, "debugfs", sizeof("debugfs")) == 0)
+		return 1;
+
+	if (strncmp(sb->s_type->name, "f2fs", sizeof("f2fs")) == 0)
+		return 1;
+
+	if (strncmp(sb->s_type->name, "sdcardfs", sizeof("sdcardfs")) == 0)
+		return 1;
+
+	/* Special handling for sysfs. Is genfs but also has setxattr handler*/
+	if (strncmp(sb->s_type->name, "sysfs", sizeof("sysfs")) == 0)
+		return 1;
+
+	/*
+	 * Special handling for rootfs. Is genfs but supports
+	 * setting SELinux context on in-core inodes.
+	 */
+	if (strncmp(sb->s_type->name, "rootfs", sizeof("rootfs")) == 0)
+		return 1;
+
+	return 0;
 }
 
 static int sb_finish_set_opts(struct super_block *sb)
@@ -6114,8 +6136,10 @@ static __init int selinux_init(void)
 
 	security_add_hooks(selinux_hooks, ARRAY_SIZE(selinux_hooks));
 
+
 	if (avc_add_callback(selinux_netcache_avc_callback, AVC_CALLBACK_RESET))
 		panic("SELinux: Unable to register AVC netcache callback\n");
+
 
 	if (selinux_enforcing)
 		printk(KERN_DEBUG "SELinux:  Starting in enforcing mode\n");
@@ -6182,17 +6206,16 @@ static struct nf_hook_ops selinux_nf_ops[] = {
 
 static int __init selinux_nf_ip_init(void)
 {
-	int err;
+	return 0;
 
 	if (!selinux_enabled)
-		return 0;
+		goto out;
 
 	printk(KERN_DEBUG "SELinux:  Registering netfilter hooks\n");
 
 	err = nf_register_hooks(selinux_nf_ops, ARRAY_SIZE(selinux_nf_ops));
 	if (err)
 		panic("SELinux: nf_register_hooks: error %d\n", err);
-
 	return 0;
 }
 

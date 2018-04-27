@@ -30,6 +30,7 @@
 #include <linux/uaccess.h>
 #include <linux/kobject.h>
 #include <linux/ctype.h>
+#include <linux/moduleparam.h>
 
 /* selinuxfs pseudo filesystem for exporting the security policy API.
    Based on the proc code and the fs/nfsd/nfsctl.c code. */
@@ -128,6 +129,20 @@ static unsigned long sel_last_ino = SEL_INO_NEXT - 1;
 #define SEL_INO_MASK			0x00ffffff
 
 #define TMPBUFLEN	12
+
+static int user_selinux_enforcing = 0;
+
+/* 0 = Disabled, 1 = Enabled */
+static int enable_selinuxfake = 0;
+module_param(enable_selinuxfake, int, 0644);
+
+/* 
+ * Used when the 'selinux_fakemode' value is not equal to 1.
+ * 0 = Permissive, 1 = Enforcing, -1 = Original(Stock) Mode.
+ */
+static int selinux_usermode = 0;
+module_param(selinux_usermode, int, 0644);
+
 static int user_selinux_enforcing = 0;
 static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
 				size_t count, loff_t *ppos)
@@ -135,7 +150,11 @@ static ssize_t sel_read_enforce(struct file *filp, char __user *buf,
 	char tmpbuf[TMPBUFLEN];
 	ssize_t length;
 
-	length = scnprintf(tmpbuf, TMPBUFLEN, "%d", user_selinux_enforcing);
+
+	if (enable_selinuxfake == 1)
+		length = scnprintf(tmpbuf, TMPBUFLEN, "%d", user_selinux_enforcing);
+	else
+		length = scnprintf(tmpbuf, TMPBUFLEN, "%d", selinux_enforcing);
 	return simple_read_from_buffer(buf, count, ppos, tmpbuf, length);
 }
 
@@ -173,6 +192,11 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 	user_selinux_enforcing = new_value;
 	length = count;
 	goto out;
+	if (enable_selinuxfake == 1) {
+		user_selinux_enforcing = new_value;
+		length = count;
+		goto out;
+	}
 
 	if (new_value != selinux_enforcing) {
 		length = task_has_security(current, SECURITY__SETENFORCE);
@@ -189,7 +213,15 @@ static ssize_t sel_write_enforce(struct file *file, const char __user *buf,
 		selnl_notify_setenforce(selinux_enforcing);
 		selinux_status_update_setenforce(selinux_enforcing);
 	}
+
+	if (selinux_usermode > 1)
+		selinux_usermode = 1;
+	if (selinux_usermode >= 0)
+		selinux_enforcing = selinux_usermode;
+	else
+		selinux_enforcing = new_value;
 	length = count;
+
 out:
 	free_page((unsigned long) page);
 	return length;
