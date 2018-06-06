@@ -419,7 +419,9 @@ out_rcu_unlock:
 	goto out;
 }
 
-/** The function is used to check if the ncm feature is enabled or not; if enabled then collect the socket meta-data information; **/
+#ifdef CONFIG_KNOX_NCM
+/* START_OF_KNOX_NPA */
+/** The function is used to check if the ncm feature is enabled or not; if enabled then it calls knox_collect_socket_data function in ncm.c to record all the socket data; **/
 static void knox_collect_metadata(struct socket *sock) {
     if(check_ncm_flag()) {
         struct knox_socket_metadata* ksm = kzalloc(sizeof(struct knox_socket_metadata),GFP_KERNEL);
@@ -477,6 +479,8 @@ static void knox_collect_metadata(struct socket *sock) {
         }
     }
 }
+/* END_OF_KNOX_NPA */
+#endif
 
 /*
  *	The peer socket should always be NULL (or else). When we call this
@@ -504,7 +508,11 @@ int inet_release(struct socket *sock)
 		if (sock_flag(sk, SOCK_LINGER) &&
 		    !(current->flags & PF_EXITING))
 			timeout = sk->sk_lingertime;
+#ifdef CONFIG_KNOX_NCM
+        /* START_OF_KNOX_NPA */
         knox_collect_metadata(sock);
+        /* END_OF_KNOX_NPA */
+#endif
 		sock->sk = NULL;
 		sk->sk_prot->close(sk, timeout);
 	}
