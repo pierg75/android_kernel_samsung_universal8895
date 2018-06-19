@@ -667,6 +667,10 @@ KBUILD_CFLAGS	+= -Ofast
 # Processor-specific tunes for Exynos 8895
 KBUILD_CFLAGS	+= $(call cc-option,-mtune=exynos-m1.cortex-a53)
 
+ifeq ($(cc-name),clang)
+KBUILD_CFLAGS	+= -mno-unaligned-access -mstrict-align
+endif
+
 # Disallow introduction of unaligned stores
 KBUILD_CFLAGS	+= $(call cc-option,--param=store-merging-allow-unaligned=0)
 
