@@ -94,7 +94,7 @@ static void pull_down_other_cpus(void)
 static void simulate_KP(void)
 {
 	pr_crit("%s()\n", __func__);
-	*(unsigned int *)0x0 = 0x0; /* SVACE: intended */
+	BUG();
 }
 
 static void simulate_DP(void)
@@ -121,12 +121,13 @@ static void simulate_WP(void)
 static void simulate_TP(void)
 {
 	pr_crit("%s()\n", __func__);
+	BUG();
 }
 
 static void simulate_PABRT(void)
 {
 	pr_crit("%s()\n", __func__);
-	((void (*)(void))0x0)(); /* SVACE: intended */
+	BUG();
 }
 
 static void simulate_UNDEF(void)
