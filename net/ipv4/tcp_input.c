@@ -918,6 +918,10 @@ void tcp_rcv_space_adjust(struct sock *sk)
 	u32 copied;
 	int time;
 
+	/* To avoid warnings lower in code */
+	u32 a;
+	u32 b;
+
 	time = tcp_time_stamp - tp->rcvq_space.time;
 #ifdef CONFIG_MPTCP
 	if (mptcp(tp)) {
@@ -989,8 +993,11 @@ void tcp_rcv_space_adjust(struct sock *sk)
 #ifdef CONFIG_CLTCP
 		if (cltcp(tp)) {
 			cltcp_rwnd_max_adjustment(tp);
+			/* Avoiding compare-distinct-pointer-types warning */
+			a = rcvwin / tp->advmss * rcvmem;
+			b = cltcp_rmem_max(tp);
 			
-			rcvbuf = min(rcvwin / tp->advmss * rcvmem, cltcp_rmem_max(tp));
+			rcvbuf = min(a, b);
 		} else 
 #endif
 		do_div(rcvwin, tp->advmss);
