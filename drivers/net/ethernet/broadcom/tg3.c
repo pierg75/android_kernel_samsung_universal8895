@@ -12031,7 +12031,11 @@ static int tg3_set_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 	int ret;
 	u32 offset, len, b_offset, odd_len;
 	u8 *buf;
+<<<<<<< HEAD
 	__be32 start = 0, end;
+=======
+	__be32 start, end;
+>>>>>>> 7cb43df... source: G950FXXU1AQL5
 
 	if (tg3_flag(tp, NO_NVRAM) ||
 	    eeprom->magic != TG3_EEPROM_MAGIC)
@@ -18142,14 +18146,24 @@ static pci_ers_result_t tg3_io_error_detected(struct pci_dev *pdev,
 
 	rtnl_lock();
 
+<<<<<<< HEAD
 	/* We probably don't have netdev yet */
 	if (!netdev || !netif_running(netdev))
 		goto done;
 
+=======
+>>>>>>> 7cb43df... source: G950FXXU1AQL5
 	/* We needn't recover from permanent error */
 	if (state == pci_channel_io_frozen)
 		tp->pcierr_recovery = true;
 
+<<<<<<< HEAD
+=======
+	/* We probably don't have netdev yet */
+	if (!netdev || !netif_running(netdev))
+		goto done;
+
+>>>>>>> 7cb43df... source: G950FXXU1AQL5
 	tg3_phy_stop(tp);
 
 	tg3_netif_stop(tp);
@@ -18246,7 +18260,11 @@ static void tg3_io_resume(struct pci_dev *pdev)
 
 	rtnl_lock();
 
+<<<<<<< HEAD
 	if (!netdev || !netif_running(netdev))
+=======
+	if (!netif_running(netdev))
+>>>>>>> 7cb43df... source: G950FXXU1AQL5
 		goto done;
 
 	tg3_full_lock(tp, 0);

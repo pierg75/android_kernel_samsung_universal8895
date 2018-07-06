@@ -324,7 +324,6 @@ static void ahash_op_unaligned_done(struct crypto_async_request *req, int err)
 		ahash_notify_einprogress(areq);
 		return;
 	}
-
 	/*
 	 * Restore the original request, see ahash_op_unaligned() for what
 	 * goes where.
@@ -436,6 +435,11 @@ static void ahash_def_finup_done1(struct crypto_async_request *req, int err)
 	if (areq->priv)
 		return;
 
+	areq->base.flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	err = ahash_def_finup_finish1(areq, err);
+	if (areq->priv)
+		return;
 	areq->base.complete(&areq->base, err);
 }
 
