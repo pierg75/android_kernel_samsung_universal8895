@@ -681,6 +681,10 @@ void xhci_stop(struct usb_hcd *hcd)
 	u32 temp;
 	struct xhci_hcd *xhci = hcd_to_xhci(hcd);
 
+#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
+	if (!usb_hcd_is_primary_hcd(hcd))
+		return;
+#endif
 	mutex_lock(&xhci->mutex);
 
 	if (!(xhci->xhc_state & XHCI_STATE_HALTED)) {
@@ -688,6 +692,11 @@ void xhci_stop(struct usb_hcd *hcd)
 
 		xhci->xhc_state |= XHCI_STATE_HALTED;
 		xhci->cmd_ring_state = CMD_RING_STATE_STOPPED;
+
+		/*
+		* Make sure the xHC is halted for a USB3 roothub
+		* (xhci_stop() could be called as part of failed init).
+		*/
 		xhci_halt(xhci);
 		xhci_reset(xhci);
 
@@ -3797,7 +3806,9 @@ static int xhci_setup_device(struct usb_hcd *hcd, struct usb_device *udev,
 	mutex_lock(&xhci->mutex);
 
 	if (xhci->xhc_state) {	/* dying, removing or halted */
+#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
 		ret = -ESHUTDOWN;
+#endif
 		goto out;
 	}
 

@@ -1035,6 +1035,9 @@ __cpufreq_cooling_register(struct device_node *np,
 			pr_debug("%s: freq:%u KHz\n", __func__, freq);
 	}
 
+	if (cpufreq_dev->id == 0)
+		cpufreq_cooling_ops.set_cur_temp = cpufreq_set_cur_temp;
+
 	snprintf(dev_name, sizeof(dev_name), "thermal-cpufreq-%d",
 		 cpufreq_dev->id);
 

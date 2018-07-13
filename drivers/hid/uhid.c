@@ -57,9 +57,8 @@ struct uhid_device {
 
 static struct miscdevice uhid_misc;
 
-<<<<<<< HEAD
 bool lcd_is_on = true;
-=======
+
 static void uhid_device_add_worker(struct work_struct *work)
 {
 	struct uhid_device *uhid = container_of(work, struct uhid_device, worker);
@@ -74,7 +73,6 @@ static void uhid_device_add_worker(struct work_struct *work)
 		uhid->running = false;
 	}
 }
->>>>>>> aosp/upstream-linux-4.4.y
 
 static void uhid_queue(struct uhid_device *uhid, struct uhid_event *ev)
 {

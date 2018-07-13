@@ -413,7 +413,6 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 {
 	struct mount *m, *child, *topper;
 	struct mount *parent = mnt->mnt_parent;
-	int ret = 0;
 
 	if (mnt == parent)
 		return do_refcount_check(mnt, refcnt);
@@ -445,7 +444,7 @@ int propagate_mount_busy(struct mount *mnt, int refcnt)
 		if (do_refcount_check(child, count))
 			return 1;
 	}
-	return ret;
+	return 0;
 }
 
 /*
@@ -463,7 +462,7 @@ void propagate_mount_unlock(struct mount *mnt)
 	for (m = propagation_next(parent, parent); m;
 			m = propagation_next(m, parent)) {
 #ifdef CONFIG_RKP_NS_PROT
-		child = __lookup_mnt(&m->mnt, mnt->mnt_mountpoint);
+		child = __lookup_mnt(m->mnt, mnt->mnt_mountpoint);
 		if (child)
 			rkp_reset_mnt_flags(child->mnt,MNT_LOCKED);
 #else
@@ -607,7 +606,11 @@ int propagate_umount(struct list_head *list)
 		list_add_tail(&mnt->mnt_umounting, &visited);
 		for (m = propagation_next(parent, parent); m;
 		     m = propagation_next(m, parent)) {
+#ifdef CONFIG_RKP_NS_PROT
+			struct mount *child = __lookup_mnt(m->mnt,
+#else
 			struct mount *child = __lookup_mnt(&m->mnt,
+#endif
 							   mnt->mnt_mountpoint);
 			if (!child)
 				continue;

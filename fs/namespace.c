@@ -2280,7 +2280,7 @@ static int attach_recursive_mnt(struct mount *source_mnt,
 		if (q)
 			mnt_change_mountpoint(child, smp, q);
 		commit_tree(child);
- 	}
+	}
 	put_mountpoint(smp);
 	unlock_mount_hash();
 
