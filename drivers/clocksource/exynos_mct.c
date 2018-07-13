@@ -533,9 +533,11 @@ static void exynos4_local_timer_stop(struct mct_clock_event_device *mevt)
 	struct clock_event_device *evt = &mevt->evt;
 
 	evt->set_state_shutdown(evt);
-	if (mct_int_type == MCT_INT_SPI)
-		disable_irq_nosync(evt->irq);
-	else
+	if (mct_int_type == MCT_INT_SPI) {
+		if (evt->irq != -1)
+			disable_irq_nosync(evt->irq);
+		exynos4_mct_write(0x1, mevt->base + MCT_L_INT_CSTAT_OFFSET);
+	} else {
 		disable_percpu_irq(mct_irqs[MCT_L0_IRQ]);
 }
 

@@ -433,7 +433,6 @@ static int ecryptfs_open(struct inode *inode, struct file *file)
 	}
 	ecryptfs_set_file_lower(
 		file, ecryptfs_inode_to_private(inode)->lower_file);
-
 	rc = read_or_initialize_metadata(ecryptfs_dentry);
 #ifdef CONFIG_SDP
 	if (rc) {
@@ -644,11 +643,7 @@ static int ecryptfs_dir_open(struct inode *inode, struct file *file)
 	/* Private value of ecryptfs_dentry allocated in
 	 * ecryptfs_lookup() */
 	struct ecryptfs_file_info *file_info;
-#if !defined(CONFIG_SDP)
 	struct file *lower_file;
-#else
-	int rc = 0;
-#endif
 
 #if defined(CONFIG_SDP)
 	struct ecryptfs_mount_crypt_stat *mount_crypt_stat;
@@ -673,7 +668,6 @@ static int ecryptfs_dir_open(struct inode *inode, struct file *file)
 				"Error attempting to allocate memory\n");
 		return -ENOMEM;
 	}
-#if !defined(CONFIG_SDP)
 	lower_file = dentry_open(ecryptfs_dentry_to_lower_path(ecryptfs_dentry),
 				 file->f_flags, current_cred());
 	if (IS_ERR(lower_file)) {
@@ -685,19 +679,6 @@ static int ecryptfs_dir_open(struct inode *inode, struct file *file)
 		return PTR_ERR(lower_file);
 	}
 	ecryptfs_set_file_lower(file, lower_file);
-#else
-	rc = ecryptfs_get_lower_file(ecryptfs_dentry, inode);
-	if (rc) {
-		printk(KERN_ERR "%s: Error attempting to initialize "
-			"the lower file for the dentry with name "
-			"[%pd]; rc = [%d]\n", __func__,
-			ecryptfs_dentry, rc);
-		kmem_cache_free(ecryptfs_file_info_cache, file_info);
-		return rc;
-	}
-	ecryptfs_set_file_lower(
-		file, ecryptfs_inode_to_private(inode)->lower_file);
-#endif
 	return 0;
 }
 
@@ -746,6 +727,14 @@ static int ecryptfs_dir_release(struct inode *inode, struct file *file)
 #ifdef CONFIG_SDP
 	mutex_unlock(&crypt_stat->cs_mutex);
 #endif
+	kmem_cache_free(ecryptfs_file_info_cache,
+			ecryptfs_file_to_private(file));
+	return 0;
+}
+
+static int ecryptfs_dir_release(struct inode *inode, struct file *file)
+{
+	fput(ecryptfs_file_to_lower(file));
 	kmem_cache_free(ecryptfs_file_info_cache,
 			ecryptfs_file_to_private(file));
 	return 0;

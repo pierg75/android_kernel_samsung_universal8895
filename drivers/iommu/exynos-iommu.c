@@ -865,10 +865,20 @@ static void sysmmu_disable_from_master(struct device *master)
 
 	BUG_ON(!has_sysmmu(master));
 
+<<<<<<< HEAD
 	spin_lock_irqsave(&owner->lock, flags);
 	list_for_each_entry(list, &owner->sysmmu_list, node) {
 		drvdata = dev_get_drvdata(list->sysmmu);
 		__sysmmu_disable(drvdata);
+=======
+static struct platform_driver exynos_sysmmu_driver __refdata = {
+	.probe	= exynos_sysmmu_probe,
+	.driver	= {
+		.name		= "exynos-sysmmu",
+		.of_match_table	= sysmmu_of_match,
+		.pm		= &sysmmu_pm_ops,
+		.suppress_bind_attrs = true,
+>>>>>>> aosp/upstream-linux-4.4.y
 	}
 	spin_unlock_irqrestore(&owner->lock, flags);
 }

@@ -140,7 +140,7 @@ static int xhci_plat_probe(struct platform_device *pdev)
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0)
-		return -ENODEV;
+		return irq;
 
 	/* Try to set 64-bit DMA first */
 	if (WARN_ON(!pdev->dev.dma_mask))
@@ -190,6 +190,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 		ret = clk_prepare_enable(clk);
 		if (ret)
 			goto put_hcd;
+	} else if (PTR_ERR(clk) == -EPROBE_DEFER) {
+		ret = -EPROBE_DEFER;
+		goto put_hcd;
 	}
 
 	if (of_device_is_compatible(pdev->dev.of_node,
@@ -216,11 +219,6 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	if ((node && of_property_read_bool(node, "usb3-lpm-capable")) ||
 			(pdata && pdata->usb3_lpm_capable))
 		xhci->quirks |= XHCI_LPM_SUPPORT;
-#ifdef CONFIG_USB_HOST_L1_SUPPORT
-	xhci->quirks |= XHCI_LPM_L1_SUPPORT;
-#endif
-	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
-		xhci->shared_hcd->can_do_streams = 1;
 
 	hcd->usb_phy = devm_usb_get_phy_by_phandle(&pdev->dev, "usb-phy", 0);
 	if (IS_ERR(hcd->usb_phy)) {
@@ -238,6 +236,9 @@ static int xhci_plat_probe(struct platform_device *pdev)
 	ret = usb_add_hcd(hcd, irq, IRQF_SHARED);
 	if (ret)
 		goto disable_usb_phy;
+
+	if (HCC_MAX_PSA(xhci->hcc_params) >= 4)
+		xhci->shared_hcd->can_do_streams = 1;
 
 	ret = usb_add_hcd(xhci->shared_hcd, irq, IRQF_SHARED);
 	if (ret)
@@ -279,20 +280,7 @@ static int xhci_plat_remove(struct platform_device *dev)
 	struct xhci_hcd	*xhci = hcd_to_xhci(hcd);
 	struct clk *clk = xhci->clk;
 
-#if defined(CONFIG_USB_HOST_SAMSUNG_FEATURE)
-	pr_info("%s \n", __func__);
-	/* In order to prevent kernel panic */
-	if(!pm_runtime_suspended(&xhci->shared_hcd->self.root_hub->dev)) {
-		pr_info("%s, shared_hcd pm_runtime_forbid\n", __func__);
-		pm_runtime_forbid(&xhci->shared_hcd->self.root_hub->dev);
-	}
-	if(!pm_runtime_suspended(&xhci->main_hcd->self.root_hub->dev)) {
-		pr_info("%s, main_hcd pm_runtime_forbid\n", __func__);
-		pm_runtime_forbid(&xhci->main_hcd->self.root_hub->dev);
-	}
-
-	manager_notifier_unregister(&xhci->ccic_xhci_nb);
-#endif
+	xhci->xhc_state |= XHCI_STATE_REMOVING;
 	usb_remove_hcd(xhci->shared_hcd);
 	usb_phy_shutdown(hcd->usb_phy);
 
